@@ -4,12 +4,13 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const { generateAmbedkarResponse } = require('./services/groq');
-const { transcribeAudio, synthesizeSpeech } = require('./services/deepgram');
+const { transcribeAudio } = require('./services/deepgram');
+const { synthesizeSarvamSpeech } = require('./services/sarvam');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Setup Multer for memory storage
+// Setup Multer for in-memory audio buffer handling
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 } // 25MB limit
@@ -30,8 +31,8 @@ app.get('/api/health', (req, res) => {
     teamName: 'Blue Origin',
     theme: 'Smart Education',
     stt: 'Deepgram Nova-3 (Multilingual / Marathi / English)',
-    tts: 'Deepgram Flux-Cliff-EN',
-    llm: process.env.GROQ_MODEL || 'openai/gpt-oss-120b (Groq LPU)'
+    tts: 'Sarvam AI (bulbul:v3, speaker: sumit - Native Marathi & English)',
+    llm: process.env.GROQ_MODEL || 'qwen/qwen3.8-27b'
   });
 });
 
@@ -61,22 +62,22 @@ app.post('/api/voice', upload.single('audio'), async (req, res) => {
       });
     }
 
-    // Step 2: Generate response from Groq as Dr. Ambedkar (returns replyText and spokenText)
+    // Step 2: Generate response from Groq as Dr. Ambedkar
     const effectiveLang = (languagePref !== 'auto') ? languagePref : detectedLanguage;
     const ambedkarReply = await generateAmbedkarResponse(userText, effectiveLang);
 
-    console.log(`[Voice] Ambedkar replyText: "${ambedkarReply.replyText.substring(0, 60)}..."`);
-    console.log(`[Voice] Ambedkar spokenText: "${ambedkarReply.spokenText.substring(0, 60)}..."`);
+    console.log(`[Voice] Ambedkar reply (${ambedkarReply.language}): "${ambedkarReply.replyText.substring(0, 70)}..."`);
 
-    // Step 3: Convert spokenText to audio using Deepgram TTS (fast, ~1-2s)
+    // Step 3: Convert reply to voice using Sarvam AI (native Marathi / English)
     let base64Audio = null;
     try {
-      const ttsResult = await synthesizeSpeech(ambedkarReply.spokenText || ambedkarReply.replyText);
+      const ttsResult = await synthesizeSarvamSpeech(ambedkarReply.replyText, ambedkarReply.language);
       if (ttsResult) {
         base64Audio = ttsResult.base64Audio;
+        console.log(`[Voice] Sarvam TTS generated successfully (${ttsResult.audioBuffer.length} bytes)`);
       }
     } catch (ttsErr) {
-      console.warn('[Voice] Deepgram TTS generation warning:', ttsErr.message);
+      console.warn('[Voice] Sarvam TTS generation warning:', ttsErr.message);
     }
 
     res.json({
@@ -84,7 +85,6 @@ app.post('/api/voice', upload.single('audio'), async (req, res) => {
       userText,
       detectedLanguage: ambedkarReply.language || detectedLanguage,
       replyText: ambedkarReply.replyText,
-      spokenText: ambedkarReply.spokenText,
       audio: base64Audio
     });
   } catch (err) {
@@ -112,7 +112,6 @@ app.post('/api/chat', async (req, res) => {
       success: true,
       userText: message.trim(),
       replyText: ambedkarReply.replyText,
-      spokenText: ambedkarReply.spokenText,
       language: ambedkarReply.language || languagePref
     });
   } catch (err) {
@@ -123,16 +122,17 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// On-demand Text-to-Speech Endpoint
+// On-demand Text-to-Speech Endpoint (Sarvam AI)
 app.post('/api/tts', async (req, res) => {
   try {
-    const { text, spokenText } = req.body;
-    const textToSpeak = spokenText || text;
-    if (!textToSpeak || !textToSpeak.trim()) {
+    const { text, language } = req.body;
+    if (!text || !text.trim()) {
       return res.status(400).json({ error: 'Text cannot be empty.' });
     }
 
-    const ttsResult = await synthesizeSpeech(textToSpeak.trim());
+    const langCode = language || (/[\u0900-\u097F]/.test(text) ? 'mr' : 'en');
+    const ttsResult = await synthesizeSarvamSpeech(text.trim(), langCode);
+
     if (!ttsResult || !ttsResult.base64Audio) {
       return res.status(502).json({ error: 'Speech synthesis temporarily unavailable.' });
     }
@@ -149,7 +149,7 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
-// Fallback to index.html using Express 5 compatible middleware
+// Fallback to index.html for client-side routing
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -160,6 +160,7 @@ app.listen(PORT, () => {
   console.log(`🏛️  SIH 2026 - AI-Powered Digital Heritage Archive`);
   console.log(`👨‍⚖️  Dr. B. R. Ambedkar Knowledge Voice & Chat Agent`);
   console.log(`🚀  Team Blue Origin (ISIH26143) | PS ID: 26096`);
+  console.log(`🗣️  TTS Engine: Sarvam AI (bulbul:v3, speaker: sumit)`);
   console.log(`🌐  Server running at: http://localhost:${PORT}`);
   console.log(`=======================================================`);
 });

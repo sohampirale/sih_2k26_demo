@@ -73,7 +73,7 @@ Users can speak naturally in **Marathi (मराठी)** or **English** via a 
    - **Groq LPU (GPT-OSS-120B / Qwen-27B)** prompt engineering for authentic, scholarly Marathi and dignified English.
 
 4. **🔊 Expressive Text-to-Speech**:
-   - Powered by **Deepgram Flux-Cliff-EN** (`model=flux-cliff-en&speed=1&expressivity=0`).
+   - Powered by **Sarvam AI Bulbul:v3 (speaker: sumit)** (`model=flux-cliff-en&speed=1&expressivity=0`).
 
 5. **🏛️ Dignified Dr. Ambedkar Persona**:
    - Concise, single-paragraph responses (3-4 sentences) optimized for spoken audio listening.
@@ -87,7 +87,7 @@ Users can speak naturally in **Marathi (मराठी)** or **English** via a 
 - **Frontend**: HTML5, Tailwind CSS, Lucide Icons, Web Audio API Visualizer
 - **Speech-to-Text (STT)**: Deepgram Nova-3 API (`model=nova-3&detect_language=true`)
 - **Reasoning Engine (LLM)**: Groq LPU (`openai/gpt-oss-120b` / `qwen/qwen3.8-27b`)
-- **Text-to-Speech (TTS)**: Deepgram Speak API (`model=flux-cliff-en`)
+- **Text-to-Speech (TTS)**: Sarvam AI Bulbul (`model=bulbul:v3`, speaker: `sumit`)
 
 ---
 

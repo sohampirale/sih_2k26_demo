@@ -165,7 +165,7 @@ async function startAudioRecording() {
       }
     };
 
-    mediaRecorder.start(150); // collect 150ms slices
+    mediaRecorder.start(150);
 
     // Start timer & visualizer
     recordingStartTime = Date.now();
@@ -242,11 +242,11 @@ async function submitAudioToBackend(audioBlob) {
 
     thinkingTimer = setTimeout(() => {
       setLoading(true, 'Dr. Ambedkar is formulating response via Groq LPU...');
-    }, 1800);
+    }, 1500);
 
     voiceTimer = setTimeout(() => {
-      setLoading(true, 'Synthesizing voice response with Deepgram Flux...');
-    }, 3500);
+      setLoading(true, 'Synthesizing voice response with Sarvam AI (bulbul:v3)...');
+    }, 3000);
 
     const res = await fetch('/api/voice', {
       method: 'POST',
@@ -271,7 +271,6 @@ async function submitAudioToBackend(audioBlob) {
     appendMessage({
       sender: 'ambedkar',
       text: data.replyText,
-      spokenText: data.spokenText,
       mode: 'voice',
       language: data.detectedLanguage,
       audioUrl: data.audio
@@ -301,7 +300,6 @@ async function handleTextSend() {
 
   messageInput.value = '';
 
-  // Append user message immediately
   appendMessage({
     sender: 'user',
     text: text,
@@ -327,11 +325,9 @@ async function handleTextSend() {
       throw new Error(data.error || 'Failed to get answer.');
     }
 
-    // Append response (talks in chat when queried in chat)
     appendMessage({
       sender: 'ambedkar',
       text: data.replyText,
-      spokenText: data.spokenText,
       mode: 'text',
       language: data.language
     });
@@ -388,16 +384,16 @@ function playAudio(audioDataUrl, playBtnElement = null, animElement = null) {
 }
 
 // Synthesize on-demand for text messages
-async function synthesizeAndPlay(text, spokenText, playBtnElement, animElement) {
+async function synthesizeAndPlay(text, language, playBtnElement, animElement) {
   try {
     const originalText = playBtnElement.innerHTML;
     playBtnElement.disabled = true;
-    playBtnElement.innerHTML = `<span class="animate-spin text-xs">⏳</span> Loading...`;
+    playBtnElement.innerHTML = `<span class="animate-spin text-xs">⏳</span> Generating...`;
 
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, spokenText })
+      body: JSON.stringify({ text, language })
     });
 
     playBtnElement.innerHTML = originalText;
@@ -419,7 +415,7 @@ async function synthesizeAndPlay(text, spokenText, playBtnElement, animElement) 
 // ========================
 // Append Message to UI
 // ========================
-function appendMessage({ sender, text, spokenText = null, mode = 'text', language = 'auto', audioUrl = null }) {
+function appendMessage({ sender, text, mode = 'text', language = 'auto', audioUrl = null }) {
   const isUser = sender === 'user';
   const msgDiv = document.createElement('div');
   msgDiv.className = `flex w-full ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in mb-4`;
@@ -442,13 +438,6 @@ function appendMessage({ sender, text, spokenText = null, mode = 'text', languag
   } else {
     const msgId = 'msg_' + Math.random().toString(36).substring(2, 9);
     
-    // Check if Marathi with English speech
-    const isMarathi = language === 'mr' || /[\u0900-\u097F]/.test(text);
-    const audioSubtitle = isMarathi && spokenText ? 
-      `<div class="text-[11px] text-slate-400 italic bg-slate-900/60 p-2 rounded-lg border border-slate-700/50 mt-2">
-         <span class="text-amber-400/90 font-medium not-italic">🔊 Spoken Voice (Deepgram Flux):</span> "${escapeHtml(spokenText)}"
-       </div>` : '';
-
     msgDiv.innerHTML = `
       <div class="max-w-2xl flex items-start gap-3">
         <img src="/assets/ambedkar_avatar.png" alt="Dr. B. R. Ambedkar" class="w-10 h-10 rounded-full border-2 border-amber-400/80 shadow-md object-cover flex-shrink-0 mt-1" />
@@ -462,14 +451,13 @@ function appendMessage({ sender, text, spokenText = null, mode = 'text', languag
           </div>
           <div class="bg-slate-800/90 backdrop-blur text-slate-100 rounded-2xl rounded-tl-none p-4 shadow-lg border border-slate-700/80 text-sm leading-relaxed relative group font-devanagari">
             <p class="mb-2 text-slate-200">${escapeHtml(text)}</p>
-            ${audioSubtitle}
             
             <!-- Controls bar -->
             <div class="flex items-center justify-between pt-2 mt-2 border-t border-slate-700/50">
               <div class="flex items-center gap-2">
                 <button id="btn_listen_${msgId}" class="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20">
                   <i data-lucide="volume-2" class="w-3.5 h-3.5 play-btn-icon"></i>
-                  <span>${audioUrl ? 'Replay Voice' : 'Listen Aloud'}</span>
+                  <span>${audioUrl ? 'Replay Voice (Sarvam)' : 'Listen Aloud (Sarvam)'}</span>
                 </button>
                 <div id="anim_${msgId}" class="is-speaking-anim hidden items-center gap-1 text-amber-400 ml-2">
                   <span class="w-1 h-3 bg-amber-400 sound-bar inline-block rounded-full"></span>
@@ -494,7 +482,7 @@ function appendMessage({ sender, text, spokenText = null, mode = 'text', languag
           if (audioUrl) {
             playAudio(audioUrl, listenBtn, animSpan);
           } else {
-            synthesizeAndPlay(text, spokenText, listenBtn, animSpan);
+            synthesizeAndPlay(text, language, listenBtn, animSpan);
           }
         });
       }
