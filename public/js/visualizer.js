@@ -1,5 +1,5 @@
 /**
- * Audio visualizer helper using Web Audio API
+ * Audio visualizer helper using Web Audio API (Minimal Light Mode styling)
  */
 class AudioWaveVisualizer {
   constructor(canvasElement) {
@@ -32,24 +32,18 @@ class AudioWaveVisualizer {
       const height = this.canvas.height;
       this.ctx.clearRect(0, 0, width, height);
 
-      const barCount = 24;
+      const barCount = 28;
       const barWidth = (width / barCount) - 3;
       let x = 0;
 
       for (let i = 0; i < barCount; i++) {
-        // Map frequency data index
         const index = Math.floor((i / barCount) * bufferLength);
-        const barHeight = Math.max(4, (this.dataArray[index] / 255) * height * 0.9);
+        const barHeight = Math.max(3, (this.dataArray[index] / 255) * height * 0.85);
 
-        // Gradient color: crimson to amber
-        const gradient = this.ctx.createLinearGradient(0, height - barHeight, 0, height);
-        gradient.addColorStop(0, '#f59e0b');
-        gradient.addColorStop(1, '#ef4444');
-
-        this.ctx.fillStyle = gradient;
-        // Rounded bar
+        // Minimalist charcoal/indigo styling
+        this.ctx.fillStyle = '#2563eb';
         this.ctx.beginPath();
-        this.ctx.roundRect(x, (height - barHeight) / 2, barWidth, barHeight, 4);
+        this.ctx.roundRect(x, (height - barHeight) / 2, barWidth, barHeight, 3);
         this.ctx.fill();
 
         x += barWidth + 3;

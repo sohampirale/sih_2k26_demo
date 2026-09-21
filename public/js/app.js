@@ -241,12 +241,12 @@ async function submitAudioToBackend(audioBlob) {
     formData.append('language', currentLanguage);
 
     thinkingTimer = setTimeout(() => {
-      setLoading(true, 'Dr. Ambedkar is formulating response via Groq LPU...');
-    }, 1500);
+      setLoading(true, 'Formulating response via Groq LPU...');
+    }, 1200);
 
     voiceTimer = setTimeout(() => {
-      setLoading(true, 'Synthesizing voice response with Sarvam AI (bulbul:v3)...');
-    }, 3000);
+      setLoading(true, 'Synthesizing voice with Sarvam AI (bulbul:v3)...');
+    }, 2800);
 
     const res = await fetch('/api/voice', {
       method: 'POST',
@@ -307,7 +307,7 @@ async function handleTextSend() {
     language: currentLanguage
   });
 
-  setLoading(true, 'Dr. Ambedkar is pondering via Groq LPU...');
+  setLoading(true, 'Formulating response via Groq LPU...');
 
   try {
     const res = await fetch('/api/chat', {
@@ -418,7 +418,7 @@ async function synthesizeAndPlay(text, language, playBtnElement, animElement) {
 function appendMessage({ sender, text, mode = 'text', language = 'auto', audioUrl = null }) {
   const isUser = sender === 'user';
   const msgDiv = document.createElement('div');
-  msgDiv.className = `flex w-full ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in mb-4`;
+  msgDiv.className = `flex w-full ${isUser ? 'justify-end' : 'justify-start'} fade-in-up mb-4`;
 
   const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const langLabel = language === 'mr' ? 'मराठी' : (language === 'en' ? 'English' : '');
@@ -427,10 +427,10 @@ function appendMessage({ sender, text, mode = 'text', language = 'auto', audioUr
     msgDiv.innerHTML = `
       <div class="max-w-xl flex flex-col items-end">
         <div class="flex items-center gap-2 mb-1">
-          <span class="text-xs text-slate-400">${timeStr}</span>
-          <span class="text-xs font-semibold text-blue-300">You (${mode === 'voice' ? '🎙️ Voice' : '💬 Chat'})</span>
+          <span class="text-[11px] text-stone-400">${timeStr}</span>
+          <span class="text-xs font-medium text-stone-600">You (${mode === 'voice' ? '🎙️ Voice' : '💬 Chat'})</span>
         </div>
-        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl rounded-tr-none px-4 py-3 shadow-md border border-blue-500/30 text-sm leading-relaxed">
+        <div class="bg-stone-900 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm text-sm leading-relaxed">
           ${escapeHtml(text)}
         </div>
       </div>
@@ -439,34 +439,34 @@ function appendMessage({ sender, text, mode = 'text', language = 'auto', audioUr
     const msgId = 'msg_' + Math.random().toString(36).substring(2, 9);
     
     msgDiv.innerHTML = `
-      <div class="max-w-2xl flex items-start gap-3">
-        <img src="/assets/ambedkar_avatar.png" alt="Dr. B. R. Ambedkar" class="w-10 h-10 rounded-full border-2 border-amber-400/80 shadow-md object-cover flex-shrink-0 mt-1" />
+      <div class="max-w-2xl flex items-start gap-3.5">
+        <img src="/assets/ambedkar_avatar.png" alt="Dr. B. R. Ambedkar" class="w-9 h-9 rounded-full border border-stone-200 shadow-sm object-cover flex-shrink-0 mt-0.5" />
         <div class="flex flex-col flex-1">
           <div class="flex items-center gap-2 mb-1">
-            <span class="text-sm font-bold text-amber-400 font-cinzel">Dr. B. R. Ambedkar</span>
-            <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-amber-500/30">
-              ${langLabel || 'Knowledge Engine'}
+            <span class="text-xs font-semibold text-stone-900 font-serif-title">Dr. B. R. Ambedkar</span>
+            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-200">
+              ${langLabel || 'Knowledge Platform'}
             </span>
-            <span class="text-xs text-slate-400">${timeStr}</span>
+            <span class="text-[11px] text-stone-400">${timeStr}</span>
           </div>
-          <div class="bg-slate-800/90 backdrop-blur text-slate-100 rounded-2xl rounded-tl-none p-4 shadow-lg border border-slate-700/80 text-sm leading-relaxed relative group font-devanagari">
-            <p class="mb-2 text-slate-200">${escapeHtml(text)}</p>
+          <div class="bg-stone-50/90 text-stone-800 rounded-2xl rounded-tl-sm p-4 border border-stone-200/70 text-sm leading-relaxed relative group shadow-sm font-devanagari">
+            <p class="text-stone-800">${escapeHtml(text)}</p>
             
-            <!-- Controls bar -->
-            <div class="flex items-center justify-between pt-2 mt-2 border-t border-slate-700/50">
+            <!-- Audio playback controls bar -->
+            <div class="flex items-center justify-between pt-2.5 mt-2.5 border-t border-stone-200/60">
               <div class="flex items-center gap-2">
-                <button id="btn_listen_${msgId}" class="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20">
-                  <i data-lucide="volume-2" class="w-3.5 h-3.5 play-btn-icon"></i>
+                <button id="btn_listen_${msgId}" class="flex items-center gap-1.5 text-xs text-stone-700 hover:text-stone-900 font-medium transition px-2.5 py-1 rounded-md bg-white hover:bg-stone-100 border border-stone-200 shadow-xs">
+                  <i data-lucide="volume-2" class="w-3.5 h-3.5 text-stone-500 play-btn-icon"></i>
                   <span>${audioUrl ? 'Replay Voice (Sarvam)' : 'Listen Aloud (Sarvam)'}</span>
                 </button>
-                <div id="anim_${msgId}" class="is-speaking-anim hidden items-center gap-1 text-amber-400 ml-2">
-                  <span class="w-1 h-3 bg-amber-400 sound-bar inline-block rounded-full"></span>
-                  <span class="w-1 h-5 bg-amber-400 sound-bar inline-block rounded-full"></span>
-                  <span class="w-1 h-2 bg-amber-400 sound-bar inline-block rounded-full"></span>
-                  <span class="text-[11px] text-amber-300 ml-1">Speaking...</span>
+                <div id="anim_${msgId}" class="is-speaking-anim hidden items-center gap-1 text-blue-600 ml-2">
+                  <span class="w-1 h-3 bg-blue-600 sound-bar inline-block rounded-full"></span>
+                  <span class="w-1 h-4 bg-blue-600 sound-bar inline-block rounded-full"></span>
+                  <span class="w-1 h-2 bg-blue-600 sound-bar inline-block rounded-full"></span>
+                  <span class="text-[11px] text-blue-600 font-medium ml-1">Speaking...</span>
                 </div>
               </div>
-              <span class="text-[11px] text-slate-400 italic">"Educate, Agitate, Organize"</span>
+              <span class="text-[11px] text-stone-400 italic">"Educate, Agitate, Organize"</span>
             </div>
           </div>
         </div>
