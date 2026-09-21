@@ -1,0 +1,84 @@
+/* Custom styling and animations for SIH 2026 Heritage Voice Agent */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Cinzel:wght@600;700&display=swap');
+
+:root {
+  --primary-blue: #1e3a8a;
+  --ashoka-blue: #0d2868;
+  --deep-gold: #d97706;
+  --soft-gold: #fef3c7;
+}
+
+body {
+  font-family: 'Inter', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+.font-devanagari {
+  font-family: 'Noto Sans Devanagari', 'Inter', sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Pulsing audio wave animation for recording */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 16px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.pulse-recording {
+  animation: pulse-ring 1.5s infinite cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+/* Sound wave bars animation */
+@keyframes sound-bar {
+  0%, 100% {
+    height: 4px;
+  }
+  50% {
+    height: 24px;
+  }
+}
+
+.sound-bar {
+  animation: sound-bar 0.8s ease-in-out infinite;
+}
+
+.sound-bar:nth-child(2) { animation-delay: 0.15s; }
+.sound-bar:nth-child(3) { animation-delay: 0.3s; }
+.sound-bar:nth-child(4) { animation-delay: 0.45s; }
+.sound-bar:nth-child(5) { animation-delay: 0.2s; }
+
+/* Subtle glow */
+.glow-gold {
+  box-shadow: 0 0 20px -3px rgba(217, 119, 6, 0.35);
+}
+.glow-blue {
+  box-shadow: 0 0 25px -3px rgba(59, 130, 246, 0.35);
+}
