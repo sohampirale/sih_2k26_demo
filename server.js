@@ -35,7 +35,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Voice Interaction Endpoint (Voice in -> Voice out)
+// Voice Interaction Endpoint (Voice In -> Voice Out)
 app.post('/api/voice', upload.single('audio'), async (req, res) => {
   try {
     if (!req.file || !req.file.buffer) {
@@ -61,17 +61,20 @@ app.post('/api/voice', upload.single('audio'), async (req, res) => {
       });
     }
 
-    // Step 2: Generate response from Groq as Dr. Ambedkar
+    // Step 2: Generate response from Groq as Dr. Ambedkar (returns replyText and spokenText)
     const effectiveLang = (languagePref !== 'auto') ? languagePref : detectedLanguage;
-    const replyText = await generateAmbedkarResponse(userText, effectiveLang);
+    const ambedkarReply = await generateAmbedkarResponse(userText, effectiveLang);
 
-    console.log(`[Voice] Groq Ambedkar reply: "${replyText.substring(0, 80)}..."`);
+    console.log(`[Voice] Ambedkar replyText: "${ambedkarReply.replyText.substring(0, 60)}..."`);
+    console.log(`[Voice] Ambedkar spokenText: "${ambedkarReply.spokenText.substring(0, 60)}..."`);
 
-    // Step 3: Convert Dr. Ambedkar's reply to audio using Deepgram TTS
+    // Step 3: Convert spokenText to audio using Deepgram TTS (fast, ~1-2s)
     let base64Audio = null;
     try {
-      const ttsResult = await synthesizeSpeech(replyText);
-      base64Audio = ttsResult.base64Audio;
+      const ttsResult = await synthesizeSpeech(ambedkarReply.spokenText || ambedkarReply.replyText);
+      if (ttsResult) {
+        base64Audio = ttsResult.base64Audio;
+      }
     } catch (ttsErr) {
       console.warn('[Voice] Deepgram TTS generation warning:', ttsErr.message);
     }
@@ -79,8 +82,9 @@ app.post('/api/voice', upload.single('audio'), async (req, res) => {
     res.json({
       success: true,
       userText,
-      detectedLanguage,
-      replyText,
+      detectedLanguage: ambedkarReply.language || detectedLanguage,
+      replyText: ambedkarReply.replyText,
+      spokenText: ambedkarReply.spokenText,
       audio: base64Audio
     });
   } catch (err) {
@@ -91,7 +95,7 @@ app.post('/api/voice', upload.single('audio'), async (req, res) => {
   }
 });
 
-// Text Chat Endpoint (Chat in -> Chat out)
+// Text Chat Endpoint (Chat In -> Chat Out)
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, language } = req.body;
@@ -102,13 +106,14 @@ app.post('/api/chat', async (req, res) => {
     const languagePref = language || 'auto';
     console.log(`[Chat] Received message: "${message.trim()}", language: ${languagePref}`);
 
-    const replyText = await generateAmbedkarResponse(message.trim(), languagePref);
+    const ambedkarReply = await generateAmbedkarResponse(message.trim(), languagePref);
 
     res.json({
       success: true,
       userText: message.trim(),
-      replyText,
-      language: languagePref
+      replyText: ambedkarReply.replyText,
+      spokenText: ambedkarReply.spokenText,
+      language: ambedkarReply.language || languagePref
     });
   } catch (err) {
     console.error('[Chat] Processing error:', err);
@@ -121,12 +126,17 @@ app.post('/api/chat', async (req, res) => {
 // On-demand Text-to-Speech Endpoint
 app.post('/api/tts', async (req, res) => {
   try {
-    const { text } = req.body;
-    if (!text || !text.trim()) {
+    const { text, spokenText } = req.body;
+    const textToSpeak = spokenText || text;
+    if (!textToSpeak || !textToSpeak.trim()) {
       return res.status(400).json({ error: 'Text cannot be empty.' });
     }
 
-    const ttsResult = await synthesizeSpeech(text.trim());
+    const ttsResult = await synthesizeSpeech(textToSpeak.trim());
+    if (!ttsResult || !ttsResult.base64Audio) {
+      return res.status(502).json({ error: 'Speech synthesis temporarily unavailable.' });
+    }
+
     res.json({
       success: true,
       audio: ttsResult.base64Audio
@@ -139,7 +149,7 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
-// Fallback to index.html using middleware for Express 5 compatibility
+// Fallback to index.html using Express 5 compatible middleware
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

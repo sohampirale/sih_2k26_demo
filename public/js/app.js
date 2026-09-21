@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function updateLanguageHints() {
   if (!messageInput) return;
   if (currentLanguage === 'mr') {
-    messageInput.placeholder = 'बाबासाहेबांना विचारा (उदा. संविधानाची उद्दिष्टे कोणती?)...';
+    messageInput.placeholder = 'बाबासाहेबांना विचारा (उदा. शिक्षणाचे महत्त्व काय?)...';
   } else if (currentLanguage === 'en') {
     messageInput.placeholder = 'Ask Dr. Ambedkar (e.g., What is social democracy?)...';
   } else {
@@ -141,7 +141,7 @@ async function startAudioRecording() {
   try {
     audioChunks = [];
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    
+
     // Choose optimal mimeType
     const mimeTypes = [
       'audio/webm;codecs=opus',
@@ -232,30 +232,28 @@ async function stopAndSubmitAudio() {
 async function submitAudioToBackend(audioBlob) {
   setLoading(true, 'Transcribing with Deepgram Nova-3 (मराठी / English)...');
 
+  let thinkingTimer = null;
+  let voiceTimer = null;
+
   try {
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.webm');
     formData.append('language', currentLanguage);
 
-    // Update message to thinking after a couple seconds
-    const thinkingTimer = setTimeout(() => {
+    thinkingTimer = setTimeout(() => {
       setLoading(true, 'Dr. Ambedkar is formulating response via Groq LPU...');
-    }, 2200);
+    }, 1800);
 
-    const voiceTimer = setTimeout(() => {
+    voiceTimer = setTimeout(() => {
       setLoading(true, 'Synthesizing voice response with Deepgram Flux...');
-    }, 4500);
+    }, 3500);
 
     const res = await fetch('/api/voice', {
       method: 'POST',
       body: formData
     });
 
-    clearTimeout(thinkingTimer);
-    clearTimeout(voiceTimer);
-
     const data = await res.json();
-    setLoading(false);
 
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Failed to process voice request.');
@@ -273,20 +271,24 @@ async function submitAudioToBackend(audioBlob) {
     appendMessage({
       sender: 'ambedkar',
       text: data.replyText,
+      spokenText: data.spokenText,
       mode: 'voice',
       language: data.detectedLanguage,
       audioUrl: data.audio
     });
 
-    // 3. Auto-play the voice response
+    // 3. Auto-play voice response
     if (data.audio) {
       playAudio(data.audio);
     }
 
   } catch (err) {
-    setLoading(false);
     console.error('Voice submission error:', err);
     alert('Voice interaction error: ' + err.message);
+  } finally {
+    clearTimeout(thinkingTimer);
+    clearTimeout(voiceTimer);
+    setLoading(false);
   }
 }
 
@@ -320,7 +322,6 @@ async function handleTextSend() {
     });
 
     const data = await res.json();
-    setLoading(false);
 
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Failed to get answer.');
@@ -330,14 +331,16 @@ async function handleTextSend() {
     appendMessage({
       sender: 'ambedkar',
       text: data.replyText,
+      spokenText: data.spokenText,
       mode: 'text',
       language: data.language
     });
 
   } catch (err) {
-    setLoading(false);
     console.error('Chat error:', err);
     alert('Chat error: ' + err.message);
+  } finally {
+    setLoading(false);
   }
 }
 
@@ -385,7 +388,7 @@ function playAudio(audioDataUrl, playBtnElement = null, animElement = null) {
 }
 
 // Synthesize on-demand for text messages
-async function synthesizeAndPlay(text, playBtnElement, animElement) {
+async function synthesizeAndPlay(text, spokenText, playBtnElement, animElement) {
   try {
     const originalText = playBtnElement.innerHTML;
     playBtnElement.disabled = true;
@@ -394,7 +397,7 @@ async function synthesizeAndPlay(text, playBtnElement, animElement) {
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text, spokenText })
     });
 
     playBtnElement.innerHTML = originalText;
@@ -416,7 +419,7 @@ async function synthesizeAndPlay(text, playBtnElement, animElement) {
 // ========================
 // Append Message to UI
 // ========================
-function appendMessage({ sender, text, mode = 'text', language = 'auto', audioUrl = null }) {
+function appendMessage({ sender, text, spokenText = null, mode = 'text', language = 'auto', audioUrl = null }) {
   const isUser = sender === 'user';
   const msgDiv = document.createElement('div');
   msgDiv.className = `flex w-full ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in mb-4`;
@@ -438,10 +441,18 @@ function appendMessage({ sender, text, mode = 'text', language = 'auto', audioUr
     `;
   } else {
     const msgId = 'msg_' + Math.random().toString(36).substring(2, 9);
+    
+    // Check if Marathi with English speech
+    const isMarathi = language === 'mr' || /[\u0900-\u097F]/.test(text);
+    const audioSubtitle = isMarathi && spokenText ? 
+      `<div class="text-[11px] text-slate-400 italic bg-slate-900/60 p-2 rounded-lg border border-slate-700/50 mt-2">
+         <span class="text-amber-400/90 font-medium not-italic">🔊 Spoken Voice (Deepgram Flux):</span> "${escapeHtml(spokenText)}"
+       </div>` : '';
+
     msgDiv.innerHTML = `
       <div class="max-w-2xl flex items-start gap-3">
-        <img src="/assets/ambedkar_avatar.png" onerror="this.src='/assets/ambedkar.png'" alt="Dr. B. R. Ambedkar" class="w-10 h-10 rounded-full border-2 border-amber-400/80 shadow-md object-cover flex-shrink-0 mt-1" />
-        <div class="flex flex-col">
+        <img src="/assets/ambedkar_avatar.png" alt="Dr. B. R. Ambedkar" class="w-10 h-10 rounded-full border-2 border-amber-400/80 shadow-md object-cover flex-shrink-0 mt-1" />
+        <div class="flex flex-col flex-1">
           <div class="flex items-center gap-2 mb-1">
             <span class="text-sm font-bold text-amber-400 font-cinzel">Dr. B. R. Ambedkar</span>
             <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-amber-500/30">
@@ -451,6 +462,7 @@ function appendMessage({ sender, text, mode = 'text', language = 'auto', audioUr
           </div>
           <div class="bg-slate-800/90 backdrop-blur text-slate-100 rounded-2xl rounded-tl-none p-4 shadow-lg border border-slate-700/80 text-sm leading-relaxed relative group font-devanagari">
             <p class="mb-2 text-slate-200">${escapeHtml(text)}</p>
+            ${audioSubtitle}
             
             <!-- Controls bar -->
             <div class="flex items-center justify-between pt-2 mt-2 border-t border-slate-700/50">
@@ -482,7 +494,7 @@ function appendMessage({ sender, text, mode = 'text', language = 'auto', audioUr
           if (audioUrl) {
             playAudio(audioUrl, listenBtn, animSpan);
           } else {
-            synthesizeAndPlay(text, listenBtn, animSpan);
+            synthesizeAndPlay(text, spokenText, listenBtn, animSpan);
           }
         });
       }

@@ -1,5 +1,6 @@
 const DEEPGRAM_LISTEN_URL = 'https://api.deepgram.com/v1/listen';
-const DEEPGRAM_SPEAK_URL = 'https://api.deepgram.com/v2/speak';
+const DEEPGRAM_SPEAK_V2_URL = 'https://api.deepgram.com/v2/speak';
+const DEEPGRAM_SPEAK_V1_URL = 'https://api.deepgram.com/v1/speak';
 
 /**
  * Transcribe an audio buffer using Deepgram Nova-3
@@ -14,7 +15,6 @@ async function transcribeAudio(audioBuffer, mimeType = 'audio/webm', language = 
     throw new Error('DEEPGRAM_API_KEY is not set in environment.');
   }
 
-  // Build query params
   const params = new URLSearchParams({
     model: 'nova-3',
     smart_format: 'true',
@@ -37,7 +37,8 @@ async function transcribeAudio(audioBuffer, mimeType = 'audio/webm', language = 
       'Authorization': `Token ${apiKey}`,
       'Content-Type': mimeType || 'audio/webm'
     },
-    body: audioBuffer
+    body: audioBuffer,
+    signal: AbortSignal.timeout(15000) // 15s timeout
   });
 
   if (!response.ok) {
@@ -49,7 +50,7 @@ async function transcribeAudio(audioBuffer, mimeType = 'audio/webm', language = 
   const channel = data.results?.channels?.[0];
   const alternative = channel?.alternatives?.[0];
   const transcript = alternative?.transcript?.trim() || '';
-  const detectedLanguage = channel?.detected_language || (language !== 'auto' ? language : 'unknown');
+  const detectedLanguage = channel?.detected_language || (language !== 'auto' ? language : 'mr');
   const confidence = alternative?.confidence ?? 0;
 
   return {
@@ -61,9 +62,10 @@ async function transcribeAudio(audioBuffer, mimeType = 'audio/webm', language = 
 
 /**
  * Synthesize text into speech using Deepgram TTS
- * User-specified model: flux-cliff-en&speed=1&expressivity=0
- * @param {string} text - Spoken text
- * @returns {Promise<{audioBuffer: Buffer, base64Audio: string}>}
+ * Primary: User-requested flux-cliff-en model
+ * Fallback: Fast aura-orion-en model (if flux-cliff-en times out or is busy)
+ * @param {string} text - Spoken text (English)
+ * @returns {Promise<{audioBuffer: Buffer, base64Audio: string} | null>}
  */
 async function synthesizeSpeech(text) {
   const apiKey = process.env.DEEPGRAM_API_KEY;
@@ -71,31 +73,63 @@ async function synthesizeSpeech(text) {
     throw new Error('DEEPGRAM_API_KEY is not set in environment.');
   }
 
-  const model = process.env.DEEPGRAM_TTS_MODEL || 'flux-cliff-en';
-  const url = `${DEEPGRAM_SPEAK_URL}?model=${encodeURIComponent(model)}&speed=1&expressivity=0`;
+  // Ensure clean text without special characters
+  const cleanText = text.replace(/[\n\r]+/g, ' ').trim();
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Token ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ text })
-  });
+  // Attempt 1: User requested flux-cliff-en model
+  const primaryModel = process.env.DEEPGRAM_TTS_MODEL || 'flux-cliff-en';
+  const primaryUrl = `${DEEPGRAM_SPEAK_V2_URL}?model=${encodeURIComponent(primaryModel)}&speed=1&expressivity=0`;
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Deepgram TTS failed (${response.status}): ${errText}`);
+  try {
+    const response = await fetch(primaryUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ text: cleanText }),
+      signal: AbortSignal.timeout(12000) // 12s timeout
+    });
+
+    if (response.ok) {
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = Buffer.from(arrayBuffer);
+      return {
+        audioBuffer,
+        base64Audio: `data:audio/mp3;base64,${audioBuffer.toString('base64')}`
+      };
+    }
+    console.warn(`Primary TTS (${primaryModel}) returned ${response.status}, attempting fallback...`);
+  } catch (err) {
+    console.warn(`Primary TTS (${primaryModel}) failed/timed out (${err.message}), falling back to aura-orion-en...`);
   }
 
-  const arrayBuffer = await response.arrayBuffer();
-  const audioBuffer = Buffer.from(arrayBuffer);
-  const base64Audio = `data:audio/mp3;base64,${audioBuffer.toString('base64')}`;
+  // Attempt 2: Ultra-fast fallback aura-orion-en (finishes in ~1.5s)
+  try {
+    const fallbackUrl = `${DEEPGRAM_SPEAK_V1_URL}?model=aura-orion-en`;
+    const fbResponse = await fetch(fallbackUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ text: cleanText }),
+      signal: AbortSignal.timeout(8000)
+    });
 
-  return {
-    audioBuffer,
-    base64Audio
-  };
+    if (fbResponse.ok) {
+      const arrayBuffer = await fbResponse.arrayBuffer();
+      const audioBuffer = Buffer.from(arrayBuffer);
+      return {
+        audioBuffer,
+        base64Audio: `data:audio/mp3;base64,${audioBuffer.toString('base64')}`
+      };
+    }
+  } catch (fbErr) {
+    console.error('Fallback TTS error:', fbErr.message);
+  }
+
+  return null;
 }
 
 module.exports = {
